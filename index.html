@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sinal — Localizador de Wi‑Fi / Celular / GPS</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -67,21 +67,18 @@
   </footer>
 
   <script>
-    // Evita zoom por double-tap/pinch ao tocar para movimentar a página
-    // Observação: isso impede o zoom do usuário (acessibilidade) — foi solicitado pelo dono do repo.
+    // Evita zoom por double-tap (mantendo pinch habilitado)
+    // Mantemos apenas o handler para bloquear double-tap; removemos qualquer bloqueio de gesturestart
     (function(){
-      // previne double-tap zoom (iOS/Android)
       let lastTouchEnd = 0;
       document.addEventListener('touchend', function(event){
         const now = Date.now();
         if (now - lastTouchEnd <= 300){
+          // Impede zoom por double-tap
           event.preventDefault();
         }
         lastTouchEnd = now;
       }, false);
-
-      // previne inicio de gesto (pinch) em iOS Safari
-      document.addEventListener('gesturestart', function(e){ e.preventDefault(); });
     })();
 
     // Código mínimo para UI: redimensiona canvas, desenha radar simples e gerencia controles
