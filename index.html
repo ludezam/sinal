@@ -1,41 +1,286 @@
-    <div class="controls" role="toolbar" aria-label="Controles">
-      <button class="btn" id="btn-wifi">WiFi (info disponível)</button>
-      <button class="btn" id="btn-cell">Rede Celular (info disponível)</button>
-      <button class="btn primary" id="btn-gps">GPS (Geolocation)</button>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sinal — Localizador de Wi‑Fi / Celular / GPS</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1>Sinal</h1>
+      <p class="lead">Localizador de Wi‑Fi, 5G e GPS — visualize forças de sinal em um radar</p>
     </div>
-  </div>
+  </header>
 
-  <div class="canvas-wrap">
-    <canvas id="radar" width="680" height="680" aria-label="Gráfico radar de sinais"></canvas>
-  </div>
+  <main class="container layout">
+    <section class="panel controls-panel" aria-labelledby="controls-title">
+      <h2 id="controls-title">Controles</h2>
 
-  <div class="panel">
-    <div class="col small" style="min-width:260px;">
-      <label for="poll-url">URL para buscar dados POST (GET polling)</label>
-      <input id="poll-url" type="text" placeholder="https://meu-backend.example/api/latest" />
-      <div style="display:flex; gap:8px; margin-top:8px;">
+      <div class="controls" role="toolbar" aria-label="Controles principais">
+        <button class="btn" id="btn-wifi" title="Informações de WiFi">WiFi (info disponível)</button>
+        <button class="btn" id="btn-cell" title="Informações de rede celular">Rede Celular (info disponível)</button>
+        <button class="btn primary" id="btn-gps" title="Obter localização via GPS">GPS (Geolocation)</button>
+      </div>
+
+      <hr />
+
+      <label for="poll-url">URL para buscar dados (GET polling)</label>
+      <input id="poll-url" type="url" placeholder="https://meu-backend.example/api/latest" />
+
+      <div class="row gap">
         <button class="btn" id="btn-start-poll">Iniciar polling</button>
         <button class="btn" id="btn-stop-poll" disabled>Parar polling</button>
         <button class="btn" id="btn-fetch-now">Buscar agora</button>
       </div>
 
-      <label style="margin-top:12px;">Importar dados POST manual (cole JSON abaixo)</label>
-      <textarea id="post-json" placeholder='Cole um array JSON: [{"id":"x","label":"Hot A","strength":63}]'></textarea>
-      <div style="display:flex; gap:8px; margin-top:8px;">
+      <label for="post-json" style="margin-top:12px;">Importar dados JSON (array)</label>
+      <textarea id="post-json" placeholder='Cole um array JSON: [{"id":"x","label":"Hot A","strength":63}]' rows="6"></textarea>
+
+      <div class="row gap">
         <button class="btn" id="btn-import">Importar JSON</button>
-        <button class="btn" id="btn-clear-post">Limpar dados POST</button>
-        <button class="btn" id="btn-download">Exportar merged JSON</button>
+        <button class="btn" id="btn-clear-post">Limpar dados</button>
+        <button class="btn" id="btn-download">Exportar JSON</button>
       </div>
 
-      <div class="status" id="status">Pronto.</div>
-      <div class="status" id="hint" style="margin-top:6px; font-size:12px;">
-        Observação: para Geolocation no iPhone/Safari sirva via HTTPS e permita localização.
-      </div>
-    </div>
+      <div class="status" id="status" aria-live="polite">Pronto.</div>
+      <div class="hint">Observação: para Geolocation no iPhone/Safari, sirva via HTTPS e permita localização.</div>
+    </section>
 
-    <div class="col" style="flex:2;">
-      <label>Resumo / Últimos dados recebidos</label>
-      <div id="summary" style="min-height:160px; color:var(--muted); font-size:13px; white-space:pre-wrap;"></div>
+    <section class="panel canvas-panel" aria-label="Radar e resumo">
+      <div class="canvas-wrap" role="img" aria-label="Gráfico radar de sinais">
+        <canvas id="radar" width="680" height="680"></canvas>
+      </div>
+
+      <div class="summary-wrap">
+        <h2>Resumo / Últimos dados recebidos</h2>
+        <div id="summary" class="summary" style="min-height:160px; white-space:pre-wrap; font-family:monospace;"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <small>&copy; Sinal — Visualizador de sinais</small>
     </div>
-  </div>
-</div>
+  </footer>
+
+  <script>
+    // Código mínimo para UI: redimensiona canvas, desenha radar simples e gerencia controles
+    (function(){
+      const canvas = document.getElementById('radar');
+      const ctx = canvas.getContext('2d');
+      const status = document.getElementById('status');
+      const summary = document.getElementById('summary');
+      const postJson = document.getElementById('post-json');
+      const pollUrl = document.getElementById('poll-url');
+
+      let data = []; // array de pontos: {id,label,strength,angle (deg),distance}
+      let pollTimer = null;
+
+      function setStatus(msg, short=false){
+        status.textContent = msg;
+        if (!short) console.log(msg);
+      }
+
+      function resizeCanvas(){
+        const wrap = canvas.parentElement;
+        const rect = wrap.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const size = Math.min(rect.width, window.innerHeight * 0.6);
+        canvas.style.width = size + 'px';
+        canvas.style.height = size + 'px';
+        canvas.width = Math.floor(size * dpr);
+        canvas.height = Math.floor(size * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawRadar();
+      }
+
+      function drawRadar(){
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        const cx = w/2, cy = h/2;
+        const R = Math.min(cx, cy) - 10;
+
+        // background
+        ctx.clearRect(0,0,canvas.width, canvas.height);
+        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--bg') || '#0b1220';
+        ctx.fillRect(0,0,canvas.width, canvas.height);
+
+        // grid circles
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        for(let i=1;i<=4;i++){
+          ctx.beginPath();
+          ctx.arc(cx, cy, (R*i/4), 0, Math.PI*2);
+          ctx.stroke();
+        }
+
+        // cross lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.beginPath();
+        ctx.moveTo(cx-R, cy);
+        ctx.lineTo(cx+R, cy);
+        ctx.moveTo(cx, cy-R);
+        ctx.lineTo(cx, cy+R);
+        ctx.stroke();
+
+        // center
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.beginPath();
+        ctx.arc(cx,cy,3,0,Math.PI*2);
+        ctx.fill();
+
+        // draw points
+        if (data && data.length){
+          data.forEach((p, idx) => {
+            const angle = ((p.angle ?? (Math.random()*360)) - 90) * Math.PI/180;
+            const dist = (p.distance ?? (1 - Math.min(100, Math.max(0, p.strength||50))/100)) * R;
+            const x = cx + Math.cos(angle)*dist;
+            const y = cy + Math.sin(angle)*dist;
+
+            const col = strengthColor(p.strength);
+            ctx.fillStyle = col;
+            ctx.beginPath();
+            ctx.arc(x, y, Math.max(4, (p.strength||50)/20), 0, Math.PI*2);
+            ctx.fill();
+
+            // label
+            ctx.font = '12px system-ui, Arial';
+            ctx.fillStyle = 'rgba(255,255,255,0.9)';
+            ctx.fillText(p.label || p.id || ('p'+idx), x + 6, y - 6);
+          });
+        }
+      }
+
+      function strengthColor(s){
+        s = Number(s||0);
+        if (s >= 75) return 'rgba(0,200,120,0.95)';
+        if (s >= 45) return 'rgba(255,180,60,0.95)';
+        return 'rgba(255,80,80,0.95)';
+      }
+
+      function renderSummary(){
+        summary.textContent = JSON.stringify(data, null, 2);
+      }
+
+      // Controls
+      document.getElementById('btn-import').addEventListener('click', ()=>{
+        try {
+          const parsed = JSON.parse(postJson.value);
+          if (!Array.isArray(parsed)) throw new Error('JSON deve ser um array');
+          // simple merge by id
+          const map = new Map(data.map(d=>[d.id,d]));
+          parsed.forEach(item => {
+            if (item && item.id) map.set(item.id, {...map.get(item.id), ...item});
+            else map.set(Math.random().toString(36).slice(2), item);
+          });
+          data = Array.from(map.values());
+          renderSummary();
+          drawRadar();
+          setStatus('JSON importado.');
+        } catch (err){
+          setStatus('Erro ao importar JSON: '+err.message);
+        }
+      });
+
+      document.getElementById('btn-clear-post').addEventListener('click', ()=>{
+        data = [];
+        postJson.value = '';
+        renderSummary();
+        drawRadar();
+        setStatus('Dados limpos.');
+      });
+
+      document.getElementById('btn-download').addEventListener('click', ()=>{
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'sinal-data.json';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setStatus('Download iniciado.');
+      });
+
+      document.getElementById('btn-fetch-now').addEventListener('click', fetchNow);
+
+      function fetchNow(){
+        const url = pollUrl.value.trim();
+        if (!url){ setStatus('Informe uma URL para buscar.', true); return; }
+        setStatus('Buscando dados...');
+        fetch(url).then(r=>{
+          if (!r.ok) throw new Error('Resposta não OK: '+r.status);
+          return r.json();
+        }).then(j=>{
+          if (Array.isArray(j)) data = mergeArray(data, j);
+          else if (j && j.items) data = mergeArray(data, j.items);
+          else setStatus('Formato de resposta não reconhecido.', true);
+          renderSummary();
+          drawRadar();
+          setStatus('Dados atualizados.');
+        }).catch(err=>{
+          setStatus('Erro ao buscar: '+err.message);
+        });
+      }
+
+      function mergeArray(base, incoming){
+        const map = new Map(base.map(d=>[d.id,d]));
+        incoming.forEach(item => {
+          if (item && item.id) map.set(item.id, {...map.get(item.id), ...item});
+          else map.set(Math.random().toString(36).slice(2), item);
+        });
+        return Array.from(map.values());
+      }
+
+      document.getElementById('btn-start-poll').addEventListener('click', ()=>{
+        const url = pollUrl.value.trim();
+        if (!url){ setStatus('Informe uma URL para polling.', true); return; }
+        if (pollTimer) { setStatus('Polling já em execução.', true); return; }
+        pollTimer = setInterval(fetchNow, 5000);
+        document.getElementById('btn-start-poll').disabled = true;
+        document.getElementById('btn-stop-poll').disabled = false;
+        setStatus('Polling iniciado (a cada 5s).');
+      });
+
+      document.getElementById('btn-stop-poll').addEventListener('click', ()=>{
+        if (pollTimer){ clearInterval(pollTimer); pollTimer = null; }
+        document.getElementById('btn-start-poll').disabled = false;
+        document.getElementById('btn-stop-poll').disabled = true;
+        setStatus('Polling parado.');
+      });
+
+      // GPS
+      document.getElementById('btn-gps').addEventListener('click', ()=>{
+        if (!navigator.geolocation){ setStatus('Geolocation não suportado neste navegador.'); return; }
+        setStatus('Solicitando localização...');
+        navigator.geolocation.getCurrentPosition(pos=>{
+          const coords = pos.coords;
+          setStatus('Local obtido: ' + coords.latitude.toFixed(4)+', '+coords.longitude.toFixed(4));
+          // push a marker to data so radar shows a point (simulate)
+          data.push({
+            id: 'gps-'+Date.now(),
+            label: 'GPS',
+            strength: 90,
+            angle: Math.random()*360,
+            distance: 0.2
+          });
+          renderSummary();
+          drawRadar();
+        }, err=>{
+          setStatus('Falha ao obter GPS: ' + err.message);
+        }, {enableHighAccuracy:true, timeout:10000});
+      });
+
+      // helpers
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+      renderSummary();
+      drawRadar();
+    })();
+  </script>
+</body>
+</html>
