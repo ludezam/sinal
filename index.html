@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> 🌤️ Tempo LDZ </title>
+    <link rel="stylesheet" href="style.css">
+    <script defer src="script.js"></script>
+</head>
+
+<body>
+    <!-- FUNDO DINÂMICO -->
+    <div id="sky"></div>
+    <div class="sun"></div>
+    <div class="moon"></div>
+    <div class="milkyway" id="milkyway"></div>
+    <div class="stars-layer" id="stars"></div>
+    <div class="shooting-stars" id="shootingStars"></div>
+    <div class="cloud-layer cloud-back" id="cloudBack"></div>
+    <div class="cloud-layer cloud-front" id="cloudFront"></div>
+    <div class="fog-layer" id="fog"></div>
+    <div class="rain-layer" id="rain"></div>
+    <div class="lightning" id="lightning"></div>
+
+    <!-- TOPO -->
+    <header class="topo">
+        <h1> 🌤️ Tempo LDZ </h1>
+    </header>
+
+    <!-- CLIMA PRINCIPAL -->
+    <section class="resumo-clima">
+        <div class="cidade">
+            📍 <span id="cidadeAtual">Buscando localização...</span>
+        </div>
+        <div class="temperatura-principal">
+            <span id="tempAtual">--°</span>
+        </div>
+        <div id="statusChuva" class="status">
+            Carregando clima...
+        </div>
+        <div id="descricaoAtual" class="descricao">
+            <p id="descricaoAtual" class="descricao">...</p>
+        </div>
+        <div class="dados-resumo">
+            <div class="item">
+                🌡️
+                <span>Sensação</span>
+                <strong id="sensacaoAtual">--°</strong>
+            </div>
+            <div class="item">
+                💧
+                <span>Umidade</span>
+                <strong id="umidadeAtual">--%</strong>
+            </div>
+            <div class="item">
+                🌬️
+                <span>Vento</span>
+                <strong id="ventoAtual">-- km/h</strong>
+            </div>
+        </div>
+    </section>
+
+    <!-- RADAR -->
+    <section class="radar">
+        <iframe
+            id="mapaRadar" title="Radar Meteorológico" loading="lazy">
+        </iframe>
+        <a
+            href="https://www.ipmetradar.com.br/2mobileGis.php" target="_blank" class="btn-ipmet">
+            📡 Ver no IPMet
+        </a>
+    </section>
+
+    <!-- CONTROLES -->
+    <section class="controles">
+        <input
+            id="cidade"
+            type="text"
+            placeholder="Digite uma cidade">
+        <button id="btnBuscar">
+            🔎 Buscar Cidade
+        </button>
+        <button id="btnGPS">
+            📍 Meu Local
+        </button>
+        <button id="btnRefresh">
+            🔄 Atualizar
+        </button>
+    </section>
+
+    <!-- PREVISÃO 12 HORAS -->
+    <section class="previsao">
+        <h2>Próximas 12 horas</h2>
+        <div id="previsao12h"></div>
+    </section>
+
+    <!-- INFORMAÇÕES ASTRONÔMICAS -->
+    <section class="previsao astro">
+        <br>
+		<h2>Mais informações</h2>
+        <div class="dados-resumo">
+            <div class="item">
+                🌅 <span>Nascer do Sol</span> <strong id="sunrise">--:--</strong>
+            </div>
+            <div class="item">
+                🌇 <span>Pôr do Sol</span> <strong id="sunset">--:--</strong>
+            </div>
+            <div class="item">
+                🕒 <span>Hora da atualização</span> <strong id="horaLocal">--:--</strong>
+            </div>
+        </div>
+    </section>
+
+    <!-- RODAPÉ -->
+    <footer>
+        <p>
+            Desenvolvido por LDZ
+            <br>
+            Dados fornecidos por Open-Meteo, RainViewer e IPMet
+        </p>
+    </footer>
+
+    <!-- ENTER PARA BUSCAR -->
+    <script>
+        document
+            .getElementById("cidade")
+            .addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    document
+                        .getElementById("btnBuscar")
+                        .click();
+                }
+            });
+    </script>
+</body>
+</html>
