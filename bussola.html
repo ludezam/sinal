@@ -13,23 +13,120 @@
       font-family: Arial, sans-serif;
       background: #f0f0f0;
     }
-    #compass {
-      width: 200px;
-      height: 200px;
-      border: 5px solid #333;
-      border-radius: 50%;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.1s ease-out;
-    }
-    #needle {
-      width: 4px;
-      height: 160px;
-      background: red;
-      position: absolute;
-    }
+#compass {
+  width: 260px;
+  height: 260px;
+  border: 6px solid #333;
+  border-radius: 50%;
+  position: relative;
+  background: radial-gradient(circle, #ffffff 0%, #e0e0e0 100%);
+  box-shadow:
+    inset 0 0 20px rgba(0,0,0,0.15),
+    0 5px 20px rgba(0,0,0,0.25);
+  transition: transform 0.1s ease-out;
+}
+
+.rose {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.dir {
+  position: absolute;
+  font-weight: bold;
+  color: #222;
+  transform: translate(-50%, -50%);
+}
+
+.north {
+  top: 12px;
+  left: 50%;
+  color: #d60000;
+  font-size: 28px;
+}
+
+.ne {
+  top: 18%;
+  left: 82%;
+}
+
+.east {
+  top: 50%;
+  left: 95%;
+}
+
+.se {
+  top: 82%;
+  left: 82%;
+}
+
+.south {
+  top: 95%;
+  left: 50%;
+}
+
+.sw {
+  top: 82%;
+  left: 18%;
+}
+
+.west {
+  top: 50%;
+  left: 5%;
+}
+
+.nw {
+  top: 18%;
+  left: 18%;
+}
+
+/* Grupo do ponteiro */
+#needle {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+/* Triângulo vermelho apontando para o norte */
+.needle-north {
+  position: absolute;
+  left: 50%;
+  top: 18px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-bottom: 105px solid #d60000;
+}
+
+/* Triângulo traseiro */
+.needle-south {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 75px solid #444;
+}
+
+/* Centro */
+.center-dot {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: #222;
+  border: 4px solid white;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 10px rgba(0,0,0,0.4);
+}
     button {
       margin-top: 20px;
       padding: 10px 20px;
@@ -40,8 +137,23 @@
 <body>
 
   <div id="compass">
-    <div id="needle"></div>
+  <div class="rose">
+    <span class="dir north">N</span>
+    <span class="dir ne">NE</span>
+    <span class="dir east">L</span>
+    <span class="dir se">SE</span>
+    <span class="dir south">S</span>
+    <span class="dir sw">SO</span>
+    <span class="dir west">O</span>
+    <span class="dir nw">NO</span>
   </div>
+
+  <div id="needle">
+    <div class="needle-north"></div>
+    <div class="needle-south"></div>
+    <div class="center-dot"></div>
+  </div>
+</div>
   
   <p id="info">Clique no botão para ativar a bússola</p>
   <button id="enable">Ativar</button>
