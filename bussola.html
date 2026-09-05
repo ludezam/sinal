@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Bússola no Navegador</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+    }
+    #compass {
+      width: 200px;
+      height: 200px;
+      border: 5px solid #333;
+      border-radius: 50%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s ease-out;
+    }
+    #needle {
+      width: 4px;
+      height: 160px;
+      background: red;
+      position: absolute;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="compass">
+    <div id="needle"></div>
+  </div>
+  
+  <p id="info">Clique no botão para ativar a bússola</p>
+  <button id="enable">Ativar</button>
+
+  <script>
+    const compass = document.getElementById('compass');
+    const info = document.getElementById('info');
+    const enableBtn = document.getElementById('enable');
+
+    enableBtn.addEventListener('click', () => {
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+          .then(response => {
+            if (response === 'granted') {
+              startCompass();
+            } else {
+              info.innerText = 'Permissão negada.';
+            }
+          }).catch(console.error);
+      } else {
+        startCompass();
+      }
+    });
+
+    function startCompass() {
+      enableBtn.style.display = 'none';
+      window.addEventListener('deviceorientation', (e) => {
+        let alpha = e.alpha; // Direção apontada pelo aparelho
+        if (alpha !== null) {
+          compass.style.transform = `rotate(${-alpha}deg)`;
+          info.innerText = `Direção: ${Math.round(alpha)}°`;
+        } else {
+          info.innerText = 'Sensor indisponível neste aparelho.';
+        }
+      }, true);
+    }
+  </script>
+</body>
+</html>
