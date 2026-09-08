@@ -127,10 +127,63 @@
   transform: translate(-50%, -50%);
   box-shadow: 0 0 10px rgba(0,0,0,0.4);
 }
+
     button {
       margin-top: 20px;
       padding: 10px 20px;
       font-size: 16px;
+      cursor: pointer;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    button.active {
+      background-color: #d60000;
+    }
+
+    button.active:hover {
+      background-color: #a00000;
+    }
+
+    #info {
+      font-size: 18px;
+      color: #333;
+      min-height: 30px;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+      background-color: #ccc;
+    }
+
+    .status-indicator.active {
+      background-color: #28a745;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(40, 167, 69, 0);
+      }
     }
   </style>
 </head>
@@ -155,40 +208,57 @@
   </div>
 </div>
   
-  <p id="info">Clique no botão para ativar a bússola</p>
+  <p id="info"><span class="status-indicator"></span>Clique no botão para ativar a bússola</p>
   <button id="enable">Ativar</button>
 
   <script>
     const rose = document.querySelector('.rose');
     const info = document.getElementById('info');
+    const statusIndicator = document.querySelector('.status-indicator');
     const enableBtn = document.getElementById('enable');
     let currentHeading = 0;
+    let isActive = false;
+    let compassListener = null;
 
     enableBtn.addEventListener('click', () => {
-      // Verifica suporte a DeviceOrientation
-      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission()
-          .then(response => {
-            if (response === 'granted') {
-              startCompass();
-            } else {
-              info.innerText = 'Permissão negada.';
-            }
-          }).catch(console.error);
+      if (isActive) {
+        stopCompass();
       } else {
-        // Fallback para dispositivos que não requerem permissão
-        startCompass();
+        // Verifica suporte a DeviceOrientation
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+          DeviceOrientationEvent.requestPermission()
+            .then(response => {
+              if (response === 'granted') {
+                startCompass();
+              } else {
+                info.innerHTML = '<span class="status-indicator"></span>Permissão negada.';
+              }
+            }).catch(error => {
+              console.error('Erro ao solicitar permissão:', error);
+              info.innerHTML = '<span class="status-indicator"></span>Erro ao solicitar permissão.';
+            });
+        } else if (typeof DeviceOrientationEvent !== 'undefined') {
+          // Fallback para dispositivos que não requerem permissão
+          startCompass();
+        } else {
+          info.innerHTML = '<span class="status-indicator"></span>Sensor de orientação não suportado neste dispositivo.';
+          enableBtn.disabled = true;
+        }
       }
     });
 
     function startCompass() {
-      enableBtn.style.display = 'none';
+      isActive = true;
+      enableBtn.textContent = 'Desativar';
+      enableBtn.classList.add('active');
+      statusIndicator.classList.add('active');
+      info.innerHTML = '<span class="status-indicator active"></span>Bússola ativa - Direção: 0°';
       
-      // Usa DeviceOrientationEvent para obter o heading (alfa)
-      window.addEventListener('deviceorientation', (e) => {
+      // Define a função de listener para poder remover depois
+      compassListener = (e) => {
         let alpha = e.alpha; // Rotação em torno do eixo Z (0-360°)
         
-        if (alpha !== null) {
+        if (alpha !== null && alpha !== undefined) {
           // O ponteiro fica fixo apontando para o norte
           // A rosa dos ventos rotaciona para que o "N" sempre aponte para o norte geográfico
           currentHeading = alpha;
@@ -196,11 +266,30 @@
           // Rotaciona a rosa dos ventos de forma inversa ao movimento do celular
           // Assim o ponteiro vermelho permanece sempre apontando para o norte
           rose.style.transform = `rotate(${-alpha}deg)`;
-          info.innerText = `Direção do celular: ${Math.round(alpha)}°`;
+          info.innerHTML = `<span class="status-indicator active"></span>Bússola ativa - Direção: ${Math.round(alpha)}°`;
         } else {
-          info.innerText = 'Sensor indisponível neste aparelho.';
+          info.innerHTML = '<span class="status-indicator"></span>Sensor indisponível neste aparelho.';
         }
-      }, true);
+      };
+      
+      window.addEventListener('deviceorientation', compassListener, true);
+    }
+
+    function stopCompass() {
+      isActive = false;
+      enableBtn.textContent = 'Ativar';
+      enableBtn.classList.remove('active');
+      statusIndicator.classList.remove('active');
+      
+      // Remove o event listener
+      if (compassListener) {
+        window.removeEventListener('deviceorientation', compassListener, true);
+        compassListener = null;
+      }
+      
+      // Reseta a rosa dos ventos
+      rose.style.transform = 'rotate(0deg)';
+      info.innerHTML = '<span class="status-indicator"></span>Bússola desativada - Clique para ativar';
     }
   </script>
 </body>
