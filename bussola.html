@@ -219,6 +219,11 @@
     let currentHeading = 0;
     let isActive = false;
     let compassListener = null;
+    
+    // Variáveis para suavização
+    const headingBuffer = [];
+    const BUFFER_SIZE = 5; // Quantidade de valores para média móvel
+    const JUMP_THRESHOLD = 45; // Limiar para detectar saltos (em graus)
 
     enableBtn.addEventListener('click', () => {
       if (isActive) {
@@ -247,8 +252,76 @@
       }
     });
 
+    /**
+     * Normaliza ângulo para 0-360
+     */
+    function normalizeAngle(angle) {
+      return ((angle % 360) + 360) % 360;
+    }
+
+    /**
+     * Calcula a diferença angular mais curta entre dois ângulos
+     * Lida corretamente com o wrap-around em 0/360
+     */
+    function angleDifference(angle1, angle2) {
+      let diff = angle2 - angle1;
+      
+      if (diff > 180) {
+        diff -= 360;
+      } else if (diff < -180) {
+        diff += 360;
+      }
+      
+      return diff;
+    }
+
+    /**
+     * Suaviza o valor do heading usando média móvel com detecção de saltos
+     */
+    function smoothHeading(newHeading) {
+      // Se o buffer está vazio, inicializa com o novo valor
+      if (headingBuffer.length === 0) {
+        headingBuffer.push(newHeading);
+        return newHeading;
+      }
+
+      const lastHeading = headingBuffer[headingBuffer.length - 1];
+      const diff = angleDifference(lastHeading, newHeading);
+
+      // Se o salto é muito grande, pode ser um wrap-around ou interferência
+      // Neste caso, ajusta o novo valor para evitar saltos abruptos
+      let adjustedHeading = newHeading;
+      
+      if (Math.abs(diff) > JUMP_THRESHOLD) {
+        // Se é um salto suspeito, tenta corrigir usando wrap-around
+        if (diff > 180) {
+          adjustedHeading = lastHeading + diff - 360;
+        } else if (diff < -180) {
+          adjustedHeading = lastHeading + diff + 360;
+        } else {
+          // Salto muito grande que não é wrap-around, ignora este valor
+          console.warn(`Salto detectado: ${lastHeading}° → ${newHeading}° (diferença: ${diff}°)`);
+          return lastHeading;
+        }
+      }
+
+      // Adiciona ao buffer
+      headingBuffer.push(adjustedHeading);
+      
+      // Mantém o buffer no tamanho máximo
+      if (headingBuffer.length > BUFFER_SIZE) {
+        headingBuffer.shift();
+      }
+
+      // Calcula a média
+      const average = headingBuffer.reduce((sum, val) => sum + val, 0) / headingBuffer.length;
+      
+      return normalizeAngle(average);
+    }
+
     function startCompass() {
       isActive = true;
+      headingBuffer.length = 0; // Limpa o buffer
       enableBtn.textContent = 'Desativar';
       enableBtn.classList.add('active');
       statusIndicator.classList.add('active');
@@ -259,14 +332,14 @@
         let alpha = e.alpha; // Rotação em torno do eixo Z (0-360°)
         
         if (alpha !== null && alpha !== undefined) {
+          // Suaviza o heading para evitar saltos abruptos
+          const smoothedHeading = smoothHeading(alpha);
+          currentHeading = smoothedHeading;
+          
           // O ponteiro fica fixo apontando para o norte
           // A rosa dos ventos rotaciona para que o "N" sempre aponte para o norte geográfico
-          currentHeading = alpha;
-          
-          // Rotaciona a rosa dos ventos de forma inversa ao movimento do celular
-          // Assim o ponteiro vermelho permanece sempre apontando para o norte
-          rose.style.transform = `rotate(${-alpha}deg)`;
-          info.innerHTML = `<span class="status-indicator active"></span>Bússola ativa - Direção: ${Math.round(alpha)}°`;
+          rose.style.transform = `rotate(${-smoothedHeading}deg)`;
+          info.innerHTML = `<span class="status-indicator active"></span>Bússola ativa - Direção: ${Math.round(smoothedHeading)}°`;
         } else {
           info.innerHTML = '<span class="status-indicator"></span>Sensor indisponível neste aparelho.';
         }
@@ -277,6 +350,7 @@
 
     function stopCompass() {
       isActive = false;
+      headingBuffer.length = 0; // Limpa o buffer
       enableBtn.textContent = 'Ativar';
       enableBtn.classList.remove('active');
       statusIndicator.classList.remove('active');
