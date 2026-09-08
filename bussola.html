@@ -2,20 +2,45 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Bússola no Navegador</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
     body {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
       font-family: Arial, sans-serif;
-      background: #f0f0f0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      gap: 20px;
+      padding: 20px;
     }
+
+    #compass-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      width: 100%;
+      max-width: 400px;
+      aspect-ratio: 1;
+    }
+
 #compass {
-  width: 260px;
-  height: 260px;
+  width: 100%;
+  height: 100%;
   border: 6px solid #333;
   border-radius: 50%;
   position: relative;
@@ -23,6 +48,9 @@
   box-shadow:
     inset 0 0 20px rgba(0,0,0,0.15),
     0 5px 20px rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .rose {
@@ -128,25 +156,48 @@
   box-shadow: 0 0 10px rgba(0,0,0,0.4);
 }
 
+    #controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      flex-shrink: 0;
+    }
+
+    #info {
+      font-size: 18px;
+      color: white;
+      min-height: 30px;
+      text-align: center;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
     button {
-      margin-top: 20px;
-      padding: 10px 20px;
+      padding: 12px 30px;
       font-size: 16px;
       cursor: pointer;
       border: none;
       background-color: #007bff;
       color: white;
-      border-radius: 4px;
-      transition: background-color 0.3s;
+      border-radius: 8px;
+      transition: background-color 0.3s, transform 0.1s;
+      font-weight: bold;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
 
     button:hover {
       background-color: #0056b3;
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
     }
 
     button:disabled {
       background-color: #cccccc;
       cursor: not-allowed;
+      transform: none;
     }
 
     button.active {
@@ -155,12 +206,6 @@
 
     button.active:hover {
       background-color: #a00000;
-    }
-
-    #info {
-      font-size: 18px;
-      color: #333;
-      min-height: 30px;
     }
 
     .status-indicator {
@@ -185,31 +230,56 @@
         box-shadow: 0 0 0 8px rgba(40, 167, 69, 0);
       }
     }
+
+    /* Responsividade */
+    @media (max-height: 600px) {
+      body {
+        gap: 10px;
+        padding: 10px;
+      }
+
+      #compass-container {
+        max-width: 300px;
+      }
+
+      button {
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+
+      #info {
+        font-size: 14px;
+      }
+    }
   </style>
 </head>
 <body>
 
-  <div id="compass">
-  <div class="rose">
-    <span class="dir north">N</span>
-    <span class="dir ne">NE</span>
-    <span class="dir east">L</span>
-    <span class="dir se">SE</span>
-    <span class="dir south">S</span>
-    <span class="dir sw">SO</span>
-    <span class="dir west">O</span>
-    <span class="dir nw">NO</span>
+  <div id="compass-container">
+    <div id="compass">
+      <div class="rose">
+        <span class="dir north">N</span>
+        <span class="dir ne">NE</span>
+        <span class="dir east">L</span>
+        <span class="dir se">SE</span>
+        <span class="dir south">S</span>
+        <span class="dir sw">SO</span>
+        <span class="dir west">O</span>
+        <span class="dir nw">NO</span>
+      </div>
+
+      <div id="needle">
+        <div class="needle-north"></div>
+        <div class="needle-south"></div>
+        <div class="center-dot"></div>
+      </div>
+    </div>
   </div>
 
-  <div id="needle">
-    <div class="needle-north"></div>
-    <div class="needle-south"></div>
-    <div class="center-dot"></div>
+  <div id="controls">
+    <p id="info"><span class="status-indicator"></span>Clique no botão para ativar a bússola</p>
+    <button id="enable">Ativar</button>
   </div>
-</div>
-  
-  <p id="info"><span class="status-indicator"></span>Clique no botão para ativar a bússola</p>
-  <button id="enable">Ativar</button>
 
   <script>
     const rose = document.querySelector('.rose');
