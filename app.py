@@ -82,3 +82,4 @@ if st.button("Analisar Site", type="primary"):
                 st.info("Nenhum alerta de segurança relevante na estrutura da URL.")
     else:
         st.warning("Por favor, insira uma URL válida antes de clicar em analisar.")
+ 
