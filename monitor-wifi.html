@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>Monitor de conexão</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(ellipse at top, #1d3150, #101827 60%); color: #f3f6fb; }
+    main { width: min(100%, 560px); padding: 32px; border: 1px solid #31435c; border-radius: 22px; background: #172235; box-shadow: 0 24px 80px #0005; }
+    h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 5vw, 2.2rem); }
+    .sub { margin: 0 0 28px; color: #afbdd0; line-height: 1.5; }
+    .status { display: flex; align-items: center; gap: 14px; padding: 20px; border-radius: 16px; background: #202e43; }
+    .dot { width: 16px; height: 16px; flex: 0 0 auto; border-radius: 50%; background: #f4b942; box-shadow: 0 0 18px currentColor; color: #f4b942; }
+    .status strong { display: block; font-size: 1.2rem; }
+    .status small { display: block; margin-top: 4px; color: #b7c3d3; }
+    .offline { background: #3d2028; }
+    .offline .dot { background: #ff5d6c; color: #ff5d6c; }
+    .online .dot { background: #44d19a; color: #44d19a; }
+    dl { display: grid; grid-template-columns: 1fr auto; gap: 14px; margin: 24px 0; }
+    dt { color: #afbdd0; } dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+    button { width: 100%; padding: 13px 16px; border: 0; border-radius: 12px; background: #8bb8ff; color: #101827; font: inherit; font-weight: 700; cursor: pointer; }
+    button:hover { background: #a7c9ff; }
+    button:focus-visible { outline: 3px solid white; outline-offset: 3px; }
+    .note { margin: 20px 0 0; color: #8fa0b7; font-size: .88rem; line-height: 1.5; }
+    .alert { display: none; margin-top: 14px; padding: 12px 14px; border: 1px solid #91404b; border-radius: 12px; background: #3d2028; color: #ffd9dd; }
+    .offline .alert { display: block; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Monitor de conexão</h1>
+    <p class="sub">Clique em iniciar para testar o acesso à internet e repetir a verificação a cada segundo.</p>
+    <section id="status" class="status" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <div><strong id="headline">Monitoramento parado</strong><small id="detail">Clique em “Iniciar monitoramento” para começar.</small></div>
+    </section>
+    <div class="alert" role="alert">A conexão parece estar fora do ar. A página tentará novamente em até um segundo.</div>
+    <dl>
+      <dt>Início do teste</dt><dd id="test-start">—</dd>
+      <dt>Última checagem</dt><dd id="last-check">—</dd>
+      <dt>Última conexão bem-sucedida</dt><dd id="last-success">—</dd>
+      <dt>Intervalo</dt><dd>1 segundo</dd>
+    </dl>
+    <button id="check-now" type="button">Iniciar monitoramento</button>
+    <p class="note">Mantenha esta página aberta. Ela verifica o acesso à internet, não o sinal ou o estado do roteador. O resultado corresponde ao aparelho onde o arquivo está aberto.</p>
+  </main>
+  <script>
+    (() => {
+      const status = document.querySelector('#status');
+      const headline = document.querySelector('#headline');
+      const detail = document.querySelector('#detail');
+      const testStart = document.querySelector('#test-start');
+      const lastCheck = document.querySelector('#last-check');
+      const lastSuccess = document.querySelector('#last-success');
+      const button = document.querySelector('#check-now');
+      const intervalMs = 1_000;
+      let timer;
+      let running = false;
+      let monitoring = false;
+      let requestController = null;
+      const time = date => date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const savedStart = localStorage.getItem('wifi-monitor-test-start');
+      if (savedStart) {
+        const savedDate = new Date(savedStart);
+        if (!Number.isNaN(savedDate.getTime())) testStart.textContent = time(savedDate);
+      }
+      const savedSuccess = localStorage.getItem('wifi-monitor-last-success');
+      if (savedSuccess) {
+        const savedDate = new Date(savedSuccess);
+        if (!Number.isNaN(savedDate.getTime())) lastSuccess.textContent = time(savedDate);
+      }
+
+      async function check() {
+        if (running) return;
+        running = true;
+        headline.textContent = 'Verificando…';
+        detail.textContent = 'Testando o acesso à internet';
+        let connected = navigator.onLine;
+        if (connected) {
+          const controller = new AbortController();
+          requestController = controller;
+          const timeout = setTimeout(() => controller.abort(), 8000);
+          try {
+            // no-cors permite usar a resposta apenas como sinal de alcance; nenhum dado pessoal é enviado.
+            await fetch('https://www.gstatic.com/generate_204?check=' + Date.now(), {
+              method: 'GET', mode: 'no-cors', cache: 'no-store', signal: controller.signal
+            });
+          } catch (_) {
+            connected = false;
+          } finally {
+            clearTimeout(timeout);
+            if (requestController === controller) requestController = null;
+          }
+        }
+        running = false;
+        if (!monitoring) return;
+        const now = new Date();
+        status.classList.toggle('online', connected);
+        status.classList.toggle('offline', !connected);
+        headline.textContent = connected ? 'Conexão disponível' : 'Sem acesso à internet';
+        detail.textContent = connected ? 'O teste de alcance foi concluído com sucesso.' : 'O dispositivo está offline ou o teste de alcance falhou.';
+        lastCheck.textContent = time(now);
+        if (connected) {
+          lastSuccess.textContent = time(now);
+          localStorage.setItem('wifi-monitor-last-success', now.toISOString());
+        }
+        clearTimeout(timer);
+        if (monitoring) timer = setTimeout(check, intervalMs);
+      }
+
+      button.addEventListener('click', () => {
+        if (monitoring) {
+          monitoring = false;
+          clearTimeout(timer);
+          if (requestController) requestController.abort();
+          button.textContent = 'Iniciar monitoramento';
+          headline.textContent = 'Monitoramento parado';
+          detail.textContent = 'Clique em “Iniciar monitoramento” para começar.';
+          return;
+        }
+        if (!monitoring) {
+          monitoring = true;
+          const startedAt = new Date();
+          testStart.textContent = time(startedAt);
+          localStorage.setItem('wifi-monitor-test-start', startedAt.toISOString());
+          button.textContent = 'Parar monitoramento';
+        }
+        clearTimeout(timer);
+        check();
+      });
+      window.addEventListener('offline', () => {
+        if (!monitoring) return;
+        status.classList.remove('online');
+        status.classList.add('offline');
+        headline.textContent = 'Sem conexão de rede';
+        detail.textContent = 'O navegador informou que o dispositivo está offline.';
+      });
+    })();
+  </script>
+</body>
+</html>
